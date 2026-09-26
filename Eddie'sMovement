@@ -1,0 +1,534 @@
+-- ════════════════════════════════════════════════════════════════
+--  Eddie's Movement  |  WindUI Style
+--  Build  : 2026.04.26.5
+--  Features: Speed Boost (jump-launch), Flick, Indicators,
+--            Mobile Controls, keybinds, sliders, float reopen.
+-- ════════════════════════════════════════════════════════════════
+
+local function __main()
+    local Players          = game:GetService("Players")
+    local RunService       = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local TweenService     = game:GetService("TweenService")
+    local CoreGui          = game:GetService("CoreGui")
+
+    local LocalPlayer      = Players.LocalPlayer
+    local Camera           = workspace.CurrentCamera
+
+    local GUIParent = CoreGui
+    if not GUIParent then GUIParent = LocalPlayer:WaitForChild("PlayerGui") end
+
+    pcall(function()
+        for _, g in ipairs(GUIParent:GetChildren()) do
+            if g.Name == "EddiesMovementGui" or g.Name == "EddiesMovementFloat" then
+                g:Destroy()
+            end
+        end
+    end)
+
+    local C = {
+        glass     = Color3.fromRGB(28, 28, 40),
+        glassHi   = Color3.fromRGB(38, 38, 54),
+        card      = Color3.fromRGB(32, 32, 46),
+        accent    = Color3.fromRGB(140, 130, 255),
+        accentB   = Color3.fromRGB(90, 80, 200),
+        accentSoft= Color3.fromRGB(170, 160, 255),
+        border    = Color3.fromRGB(60, 60, 88),
+        borderSoft= Color3.fromRGB(48, 48, 70),
+        text      = Color3.fromRGB(240, 240, 255),
+        dim       = Color3.fromRGB(150, 148, 180),
+        white     = Color3.fromRGB(255, 255, 255),
+        off       = Color3.fromRGB(44, 44, 62),
+        red       = Color3.fromRGB(255, 100, 120),
+        green     = Color3.fromRGB(120, 230, 160),
+        yellow    = Color3.fromRGB(255, 210, 120),
+    }
+
+    local State = {
+        SpeedEnabled   = false,
+        FlickEnabled   = false,
+        Indicators     = true,
+        MobileControls = false,
+        SpeedKey       = Enum.KeyCode.G,
+        FlickKey       = Enum.KeyCode.H,
+        UIKey          = Enum.KeyCode.RightShift,
+        SpeedPower     = 100,
+        FlickPower     = 100,
+    }
+
+    local function corner(o, r)
+        local c = Instance.new("UICorner", o)
+        c.CornerRadius = UDim.new(0, r or 10)
+        return c
+    end
+    local function stroke(o, col, thick, trans)
+        local s = Instance.new("UIStroke", o)
+        s.Color = col or C.border
+        s.Thickness = thick or 1
+        s.Transparency = trans or 0
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        return s
+    end
+    local function gradient(o, c1, c2, rot)
+        local g = Instance.new("UIGradient", o)
+        g.Color = ColorSequence.new(c1, c2)
+        g.Rotation = rot or 0
+        return g
+    end
+
+    -- ════════════════════════════════════════════════════════════
+    --  MAIN WINDOW
+    -- ════════════════════════════════════════════════════════════
+    local Gui = Instance.new("ScreenGui")
+    Gui.Name = "EddiesMovementGui"
+    Gui.ResetOnSpawn = false
+    Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    Gui.DisplayOrder = 999
+    Gui.IgnoreGuiInset = true
+    Gui.Parent = GUIParent
+
+    local Win = Instance.new("Frame", Gui)
+    Win.Size = UDim2.new(0, 260, 0, 420)
+    Win.Position = UDim2.new(0.5, -130, 0.5, -210)
+    Win.BackgroundColor3 = C.glass
+    Win.BackgroundTransparency = 0.06
+    Win.BorderSizePixel = 0
+    Win.ClipsDescendants = true
+    Win.Active = true
+    corner(Win, 16)
+    stroke(Win, C.border, 1)
+
+    local winGlow = Instance.new("Frame", Win)
+    winGlow.Size = UDim2.new(1, 0, 0, 1)
+    winGlow.BackgroundColor3 = C.accentSoft
+    winGlow.BackgroundTransparency = 0.4
+    winGlow.BorderSizePixel = 0
+
+    local TBar = Instance.new("Frame", Win)
+    TBar.Size = UDim2.new(1, 0, 0, 40)
+    TBar.BackgroundColor3 = C.glassHi
+    TBar.BackgroundTransparency = 0.35
+    TBar.BorderSizePixel = 0
+
+    local mark = Instance.new("Frame", TBar)
+    mark.Size = UDim2.new(0, 22, 0, 22)
+    mark.Position = UDim2.new(0, 12, 0.5, -11)
+    mark.BackgroundColor3 = C.accentB
+    mark.BorderSizePixel = 0
+    corner(mark, 6)
+    gradient(mark, C.accentSoft, C.accentB, 45)
+
+    local markTxt = Instance.new("TextLabel", mark)
+    markTxt.Size = UDim2.new(1,0,1,0)
+    markTxt.BackgroundTransparency = 1
+    markTxt.Text = "E"
+    markTxt.TextColor3 = C.white
+    markTxt.Font = Enum.Font.GothamBlack
+    markTxt.TextSize = 12
+
+    local TTitle = Instance.new("TextLabel", TBar)
+    TTitle.Size = UDim2.new(1, -80, 1, 0)
+    TTitle.Position = UDim2.new(0, 42, 0, 0)
+    TTitle.BackgroundTransparency = 1
+    TTitle.Text = "Eddie's Movement"
+    TTitle.TextColor3 = C.text
+    TTitle.Font = Enum.Font.GothamBlack
+    TTitle.TextSize = 13
+    TTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local HideBtn = Instance.new("TextButton", TBar)
+    HideBtn.Size = UDim2.new(0, 22, 0, 22)
+    HideBtn.Position = UDim2.new(1, -52, 0.5, -11)
+    HideBtn.BackgroundColor3 = C.card
+    HideBtn.BackgroundTransparency = 0.55
+    HideBtn.BorderSizePixel = 0
+    HideBtn.Text = "−"
+    HideBtn.TextColor3 = C.dim
+    HideBtn.Font = Enum.Font.GothamBold
+    HideBtn.TextSize = 12
+    HideBtn.AutoButtonColor = false
+    corner(HideBtn, 8)
+    stroke(HideBtn, C.borderSoft, 1, 0.3)
+
+    local CloseBtn = Instance.new("TextButton", TBar)
+    CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+    CloseBtn.Position = UDim2.new(1, -28, 0.5, -11)
+    CloseBtn.BackgroundColor3 = C.red
+    CloseBtn.BackgroundTransparency = 0.55
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.Text = "×"
+    CloseBtn.TextColor3 = C.white
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.TextSize = 12
+    CloseBtn.AutoButtonColor = false
+    corner(CloseBtn, 8)
+    stroke(CloseBtn, C.red, 1, 0.3)
+
+    local Content = Instance.new("Frame", Win)
+    Content.Size = UDim2.new(1, -20, 1, -50)
+    Content.Position = UDim2.new(0, 10, 0, 46)
+    Content.BackgroundTransparency = 1
+    local layout = Instance.new("UIListLayout", Content)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 6)
+
+    local rowOrder = 0
+    local function nxt() rowOrder = rowOrder + 1; return rowOrder end
+
+    local function featureButton(label, isOn, onClick)
+        local btn = Instance.new("TextButton", Content)
+        btn.Size = UDim2.new(1, 0, 0, 34)
+        btn.BackgroundColor3 = isOn and C.accentB or C.off
+        btn.BackgroundTransparency = isOn and 0.1 or 0.4
+        btn.BorderSizePixel = 0
+        btn.Text = ""
+        btn.AutoButtonColor = false
+        btn.LayoutOrder = nxt()
+        corner(btn, 10)
+        stroke(btn, isOn and C.accent or C.borderSoft, 1, 0.3)
+
+        local lbl = Instance.new("TextLabel", btn)
+        lbl.Size = UDim2.new(1, 0, 1, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = label
+        lbl.TextColor3 = C.white
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 13
+
+        btn.MouseButton1Click:Connect(function()
+            local nowOn = onClick()
+            btn.BackgroundColor3 = nowOn and C.accentB or C.off
+            btn.BackgroundTransparency = nowOn and 0.1 or 0.4
+            local s = btn:FindFirstChildOfClass("UIStroke")
+            if s then s.Color = nowOn and C.accent or C.borderSoft end
+        end)
+        return btn
+    end
+
+    local function toggleRow(label, key, defaultValue)
+        local row = Instance.new("Frame", Content)
+        row.Size = UDim2.new(1, 0, 0, 30)
+        row.BackgroundColor3 = C.card
+        row.BackgroundTransparency = 0.25
+        row.BorderSizePixel = 0
+        row.LayoutOrder = nxt()
+        corner(row, 10)
+        stroke(row, C.borderSoft, 1, 0.5)
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Size = UDim2.new(1, -60, 1, 0)
+        lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = label
+        lbl.TextColor3 = C.text
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 12
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        local valLbl = Instance.new("TextLabel", row)
+        valLbl.Size = UDim2.new(0, 40, 1, 0)
+        valLbl.Position = UDim2.new(1, -52, 0, 0)
+        valLbl.BackgroundTransparency = 1
+        valLbl.Text = defaultValue and "ON" or "OFF"
+        valLbl.TextColor3 = defaultValue and C.green or C.red
+        valLbl.Font = Enum.Font.GothamBold
+        valLbl.TextSize = 11
+
+        local clk = Instance.new("TextButton", row)
+        clk.Size = UDim2.new(1, 0, 1, 0)
+        clk.BackgroundTransparency = 1
+        clk.Text = ""
+        clk.ZIndex = 2
+        clk.MouseButton1Click:Connect(function()
+            local v = not State[key]
+            State[key] = v
+            valLbl.Text = v and "ON" or "OFF"
+            valLbl.TextColor3 = v and C.green or C.red
+        end)
+    end
+
+    local function keybindRow(label, key, onSet)
+        local row = Instance.new("Frame", Content)
+        row.Size = UDim2.new(1, 0, 0, 30)
+        row.BackgroundColor3 = C.card
+        row.BackgroundTransparency = 0.25
+        row.BorderSizePixel = 0
+        row.LayoutOrder = nxt()
+        corner(row, 10)
+        stroke(row, C.borderSoft, 1, 0.5)
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Size = UDim2.new(1, -80, 1, 0)
+        lbl.Position = UDim2.new(0, 12, 0, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = label
+        lbl.TextColor3 = C.text
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 12
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        local kb = Instance.new("TextButton", row)
+        kb.Size = UDim2.new(0, 68, 0, 22)
+        kb.Position = UDim2.new(1, -78, 0.5, -11)
+        kb.BackgroundColor3 = C.off
+        kb.BackgroundTransparency = 0.2
+        kb.BorderSizePixel = 0
+        kb.Text = tostring(key):gsub("Enum.KeyCode.","")
+        kb.TextColor3 = C.accent
+        kb.Font = Enum.Font.GothamBold
+        kb.TextSize = 10
+        kb.AutoButtonColor = false
+        corner(kb, 8)
+        stroke(kb, C.borderSoft, 1, 0.4)
+
+        local listening = false
+        kb.MouseButton1Click:Connect(function()
+            if listening then return end
+            listening = true
+            kb.Text = "..."
+            kb.TextColor3 = C.yellow
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(input, gp)
+                if gp then return end
+                if input.UserInputType == Enum.UserInputType.Keyboard then
+                    kb.Text = tostring(input.KeyCode):gsub("Enum.KeyCode.","")
+                    kb.TextColor3 = C.green
+                    listening = false
+                    onSet(input.KeyCode)
+                    conn:Disconnect()
+                end
+            end)
+        end)
+    end
+
+    local function sliderRow(label, min, max, default, onChange)
+        local row = Instance.new("Frame", Content)
+        row.Size = UDim2.new(1, 0, 0, 48)
+        row.BackgroundColor3 = C.card
+        row.BackgroundTransparency = 0.25
+        row.BorderSizePixel = 0
+        row.LayoutOrder = nxt()
+        corner(row, 10)
+        stroke(row, C.borderSoft, 1, 0.5)
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Size = UDim2.new(0.6, 0, 0, 16)
+        lbl.Position = UDim2.new(0, 12, 0, 6)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = label
+        lbl.TextColor3 = C.text
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 12
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+        local val = Instance.new("TextLabel", row)
+        val.Size = UDim2.new(0.4, -12, 0, 16)
+        val.Position = UDim2.new(0.6, 0, 0, 6)
+        val.BackgroundTransparency = 1
+        val.Text = tostring(default)
+        val.TextColor3 = C.accent
+        val.Font = Enum.Font.GothamBold
+        val.TextSize = 12
+        val.TextXAlignment = Enum.TextXAlignment.Right
+
+        local track = Instance.new("Frame", row)
+        track.Size = UDim2.new(1, -24, 0, 6)
+        track.Position = UDim2.new(0, 12, 0, 30)
+        track.BackgroundColor3 = C.off
+        track.BorderSizePixel = 0
+        corner(track, 3)
+
+        local fill = Instance.new("Frame", track)
+        fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+        fill.BackgroundColor3 = C.accent
+        fill.BorderSizePixel = 0
+        corner(fill, 3)
+        gradient(fill, C.accentSoft, C.accentB, 0)
+
+        local knob = Instance.new("Frame", track)
+        knob.Size = UDim2.new(0, 12, 0, 12)
+        knob.Position = UDim2.new((default-min)/(max-min), -6, 0.5, -6)
+        knob.BackgroundColor3 = C.white
+        knob.BorderSizePixel = 0
+        corner(knob, 6)
+
+        local dragging = false
+        local clk = Instance.new("TextButton", row)
+        clk.Size = UDim2.new(1, 0, 1, 0)
+        clk.BackgroundTransparency = 1
+        clk.Text = ""
+        clk.ZIndex = 2
+
+        local function update(input)
+            local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            local v = math.floor(min + (max-min) * rel)
+            val.Text = tostring(v)
+            fill.Size = UDim2.new(rel, 0, 1, 0)
+            knob.Position = UDim2.new(rel, -6, 0.5, -6)
+            onChange(v)
+        end
+
+        clk.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; update(input)
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                update(input)
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+    end
+
+    featureButton("SPEED: OFF", State.SpeedEnabled, function()
+        State.SpeedEnabled = not State.SpeedEnabled
+        return State.SpeedEnabled
+    end)
+    featureButton("FLICK: OFF", State.FlickEnabled, function()
+        State.FlickEnabled = not State.FlickEnabled
+        return State.FlickEnabled
+    end)
+
+    toggleRow("Indicators", "Indicators", State.Indicators)
+    toggleRow("Mobile Controls", "MobileControls", State.MobileControls)
+
+    keybindRow("Speed Key", State.SpeedKey, function(k) State.SpeedKey = k end)
+    keybindRow("Flick Key", State.FlickKey, function(k) State.FlickKey = k end)
+    keybindRow("UI Key", State.UIKey, function(k) State.UIKey = k end)
+
+    sliderRow("Speed Boost", 10, 500, State.SpeedPower, function(v) State.SpeedPower = v end)
+    sliderRow("Flick Speed", 10, 500, State.FlickPower, function(v) State.FlickPower = v end)
+
+    -- FLOAT
+    local FloatGui = Instance.new("ScreenGui")
+    FloatGui.Name = "EddiesMovementFloat"
+    FloatGui.ResetOnSpawn = false
+    FloatGui.DisplayOrder = 998
+    FloatGui.Parent = GUIParent
+    FloatGui.Enabled = false
+
+    local FloatBtn = Instance.new("TextButton", FloatGui)
+    FloatBtn.Size = UDim2.new(0, 160, 0, 34)
+    FloatBtn.Position = UDim2.new(1, -176, 0, 14)
+    FloatBtn.BackgroundColor3 = C.glass
+    FloatBtn.BackgroundTransparency = 0.1
+    FloatBtn.BorderSizePixel = 0
+    FloatBtn.Text = "Eddie's Movement"
+    FloatBtn.TextColor3 = C.text
+    FloatBtn.Font = Enum.Font.GothamBold
+    FloatBtn.TextSize = 12
+    FloatBtn.AutoButtonColor = false
+    corner(FloatBtn, 17)
+    stroke(FloatBtn, C.border, 1)
+
+    FloatBtn.MouseEnter:Connect(function()
+        TweenService:Create(FloatBtn, TweenInfo.new(0.15), { BackgroundTransparency = 0 }):Play()
+    end)
+    FloatBtn.MouseLeave:Connect(function()
+        TweenService:Create(FloatBtn, TweenInfo.new(0.15), { BackgroundTransparency = 0.1 }):Play()
+    end)
+
+    HideBtn.MouseButton1Click:Connect(function()
+        Gui.Enabled = false
+        FloatGui.Enabled = true
+    end)
+    CloseBtn.MouseButton1Click:Connect(function()
+        Gui:Destroy()
+        FloatGui:Destroy()
+    end)
+    FloatBtn.MouseButton1Click:Connect(function()
+        Gui.Enabled = true
+        FloatGui.Enabled = false
+    end)
+
+    -- drag
+    local dragOn, dragStart, winStart = false, nil, nil
+    TBar.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+            dragOn = true; dragStart = inp.Position; winStart = Win.Position
+        end
+    end)
+    TBar.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+            dragOn = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if not dragOn then return end
+        if inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch then
+            Win.Position = UDim2.new(
+                winStart.X.Scale, winStart.X.Offset + (inp.Position.X - dragStart.X),
+                winStart.Y.Scale, winStart.Y.Offset + (inp.Position.Y - dragStart.Y)
+            )
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(function(inp, gp)
+        if gp then return end
+        if inp.KeyCode == State.UIKey then
+            if Gui.Enabled then
+                Gui.Enabled = false
+                FloatGui.Enabled = true
+            else
+                Gui.Enabled = true
+                FloatGui.Enabled = false
+            end
+        elseif inp.KeyCode == State.SpeedKey then
+            State.SpeedEnabled = not State.SpeedEnabled
+        elseif inp.KeyCode == State.FlickKey then
+            State.FlickEnabled = not State.FlickEnabled
+        end
+    end)
+
+    -- SPEED BOOST
+    local boosting = false
+    local function speedBoost()
+        if boosting then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        boosting = true
+        local dir = hrp.CFrame.LookVector
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "SpeedBoost"
+        bv.MaxForce = Vector3.new(1e5, 0, 1e5)
+        bv.Velocity = dir * State.SpeedPower + Vector3.new(0, 30, 0)
+        bv.Parent = hrp
+        game:GetService("Debris"):AddItem(bv, 0.25)
+        task.delay(0.3, function() boosting = false end)
+    end
+
+    UserInputService.JumpRequest:Connect(function()
+        if State.SpeedEnabled then speedBoost() end
+    end)
+
+    -- FLICK
+    local flicking = false
+    local function flick()
+        if flicking then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        flicking = true
+        local dir = Camera.CFrame.LookVector
+        hrp.AssemblyLinearVelocity = Vector3.new(dir.X * State.FlickPower, hrp.AssemblyLinearVelocity.Y, dir.Z * State.FlickPower)
+        task.delay(0.15, function() flicking = false end)
+    end
+
+    UserInputService.InputBegan:Connect(function(inp, gp)
+        if gp then return end
+        if State.FlickEnabled and State.FlickKey and inp.KeyCode == State.FlickKey then
+            flick()
+        end
+    end)
+end
+
+local ok, err = pcall(__main)
+if not ok then warn("[Eddie's Movement] Error: " .. tostring(err)) end
